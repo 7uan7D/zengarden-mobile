@@ -1,0 +1,205 @@
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
+
+// Dữ liệu cứng cho 3 thông báo
+const notifications = [
+  {
+    id: 1,
+    title: "Task Completed",
+    message: "You have successfully completed 'Learn React Basics'!",
+    timestamp: "2025-05-30T09:00:00.000Z",
+  },
+  {
+    id: 2,
+    title: "Level Up",
+    message: "Congratulations! Your tree has reached Level 4!",
+    timestamp: "2025-05-30T08:30:00.000Z",
+  },
+  {
+    id: 3,
+    title: "Reminder",
+    message: "Don't forget to start your next task today!",
+    timestamp: "2025-05-30T07:45:00.000Z",
+  },
+];
+
+export default function NotificationScreen() {
+  const [time, setTime] = useState(new Date());
+
+  // Cập nhật đồng hồ
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const hours = time.getHours();
+  const minutes = time.getMinutes();
+  const isPM = hours >= 12;
+
+  const displayHour = hours % 12 === 0 ? 12 : hours % 12;
+  const displayMinutes = minutes < 10 ? `0${minutes}` : minutes;
+  const ampm = isPM ? "PM" : "AM";
+
+  // Định dạng thời gian thông báo
+  const formatTimestamp = (timestamp) => {
+    return new Date(timestamp).toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    });
+  };
+
+  return (
+    <View style={styles.mainContainer}>
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Header giống TaskScreen */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity style={styles.itemTrigger}>
+            <Text style={styles.itemTriggerText}>🎒</Text>
+          </TouchableOpacity>
+
+          <View style={styles.clockWrapper}>
+            <Text style={styles.timeText}>
+              {displayHour}:{displayMinutes}
+              <Text style={styles.ampmText}> {ampm}</Text>
+            </Text>
+          </View>
+
+          <View style={styles.nameAvatarRow}>
+            <Text style={styles.name}>Tuấn</Text>
+            <View style={styles.avatarBlock}>
+              <Image
+                source={{ uri: "https://via.placeholder.com/40" }}
+                style={styles.avatar}
+              />
+              <Text style={styles.level}>Lv 5</Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Danh sách thông báo */}
+        <View style={styles.notificationList}>
+          {notifications.map((notification) => (
+            <View key={notification.id} style={styles.notificationCard}>
+              <Text style={styles.notificationTitle}>{notification.title}</Text>
+              <Text style={styles.notificationMessage}>{notification.message}</Text>
+              <Text style={styles.notificationTimestamp}>
+                {formatTimestamp(notification.timestamp)}
+              </Text>
+            </View>
+          ))}
+        </View>
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  mainContainer: {
+    flex: 1,
+    backgroundColor: "#F5FDF7",
+  },
+  container: {
+    padding: 20,
+    flexGrow: 1,
+  },
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 20,
+  },
+  nameAvatarRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#609994",
+  },
+  avatarBlock: {
+    alignItems: "center",
+  },
+  avatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#ccc",
+  },
+  level: {
+    fontSize: 12,
+    color: "#888",
+    marginTop: 2,
+  },
+  itemTrigger: {
+    width: 40,
+    height: 40,
+    backgroundColor: "#83aa6c",
+    borderRadius: 20,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  itemTriggerText: {
+    fontSize: 20,
+    color: "#fff",
+  },
+  clockWrapper: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeText: {
+    fontSize: 48,
+    fontWeight: "bold",
+    color: "#333",
+    position: "relative",
+  },
+  ampmText: {
+    fontSize: 16,
+    fontWeight: "500",
+    position: "absolute",
+    top: 6,
+    right: -40,
+    color: "#333",
+  },
+  notificationList: {
+    flexDirection: "column",
+    gap: 10,
+  },
+  notificationCard: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 15,
+    marginBottom: 10,
+    elevation: 2,
+  },
+  notificationTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 5,
+  },
+  notificationMessage: {
+    fontSize: 14,
+    color: "#555",
+    marginBottom: 5,
+  },
+  notificationTimestamp: {
+    fontSize: 12,
+    color: "#888",
+  },
+});
