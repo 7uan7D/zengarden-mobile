@@ -1,6 +1,23 @@
 import { Tabs } from "expo-router";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, TouchableOpacity } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { LogOut } from "lucide-react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { router } from "expo-router";
+
+// Hàm xử lý đăng xuất
+const handleLogout = async () => {
+  try {
+    // Xóa token và refreshToken khỏi AsyncStorage
+    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("refreshToken");
+    
+    // Điều hướng về màn hình login
+    router.replace("/login");
+  } catch (error) {
+    console.error("Logout failed:", error);
+  }
+};
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -12,16 +29,16 @@ export default function TabsLayout() {
           backgroundColor: "#fff",
           borderTopWidth: 1,
           borderTopColor: "#ccc",
-          height: 80, // Tăng nhẹ để có chỗ cho padding
-          paddingBottom: insets.bottom, // Thêm padding cho system navigation
-          paddingTop: 5, // Cân đối dọc
+          height: 80,
+          paddingBottom: insets.bottom,
+          paddingTop: 5,
           alignItems: "center",
         },
         tabBarLabelStyle: {
           fontSize: 16,
           fontWeight: "500",
-          marginTop: -4, // Nâng chữ nhẹ
-          lineHeight: 10, // Căn dọc
+          marginTop: -4,
+          lineHeight: 10,
         },
         tabBarActiveTintColor: "#3b82f6",
         tabBarInactiveTintColor: "#333",
@@ -32,6 +49,11 @@ export default function TabsLayout() {
           </View>
         ),
         headerShown: false, // Tắt header nhóm (tabs)
+        headerRight: () => (
+          <TouchableOpacity style={styles.headerButton} onPress={handleLogout}>
+            <LogOut color="#333" size={24} />
+          </TouchableOpacity>
+        ),
       }}
     >
       <Tabs.Screen
@@ -105,6 +127,9 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: "50%",
     transform: [{ translateX: -0.5 }],
-    zIndex: -1, // Không che label
+    zIndex: -1,
+  },
+  headerButton: {
+    marginRight: 15,
   },
 });
