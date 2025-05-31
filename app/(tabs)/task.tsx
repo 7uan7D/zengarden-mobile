@@ -8,6 +8,8 @@ import {
   ScrollView,
   Dimensions,
   ImageBackground,
+  Modal,
+  Pressable,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 
@@ -18,7 +20,9 @@ export default function TaskScreen() {
   // State để lưu trạng thái nhiệm vụ: 0 (Not Started), 1 (On-going), 2 (Paused), 3 (Completed)
   const [taskStatus, setTaskStatus] = useState(0);
   // State để lưu thời gian còn lại của nhiệm vụ (tính bằng giây)
-  const [remainingTime, setRemainingTime] = useState(12.75 * 60);
+  const [remainingTime, setRemainingTime] = useState(4 * 60);
+  // State để kiểm soát dialog xác nhận hoàn thành
+  const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
   // Dữ liệu mẫu cho nhiệm vụ
   const sampleTask = {
@@ -98,6 +102,15 @@ export default function TaskScreen() {
     setTaskStatus(1);
   };
 
+  // Xử lý sự kiện hoàn thành nhiệm vụ
+  const handleFinish = () => {
+    setTaskStatus(3); // Đặt trạng thái hoàn thành
+    setRemainingTime(0); // Đặt thời gian còn lại về 0
+    setIsFinishDialogOpen(false); // Đóng dialog
+    // TODO: Gọi API để cập nhật trạng thái nhiệm vụ nếu cần
+    // Ví dụ: await UpdateTaskStatus(sampleTask.taskId, 3);
+  };
+
   // Hàm vẽ vòng tròn tiến độ với các đoạn màu cho work/break
   const renderProgressCircle = (task) => {
     // Tính toán tổng thời gian và thời gian đã trôi qua
@@ -155,9 +168,9 @@ export default function TaskScreen() {
             r={radius - 8}
             stroke="#fef3c7"
             strokeWidth={8}
-            fill="#ffffff" // Nền trắng cho timer cycle
+            fill="#ffffff"
           />
-          {/* Vẽ từng đoạn cung cho các giai đoạn */}
+          {/* Vẽ từng đoạn cung cho các giai đoạn (theo chiều kim đồng hồ) */}
           {phases.map((phase, idx) => {
             const phaseProgress = phase.duration / totalDurationSeconds;
             const startAngle = accumulatedProgress * 2 * Math.PI - Math.PI / 2;
@@ -247,24 +260,66 @@ export default function TaskScreen() {
               <Text style={styles.actionButtonText}>Start</Text>
             </TouchableOpacity>
           )}
-          {taskStatus === 1 && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#f59e0b" }]}
-              onPress={handlePause}
-            >
-              <Text style={styles.actionButtonText}>Pause</Text>
-            </TouchableOpacity>
-          )}
-          {taskStatus === 2 && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#10b981" }]}
-              onPress={handleResume}
-            >
-              <Text style={styles.actionButtonText}>Resume</Text>
-            </TouchableOpacity>
+          {(taskStatus === 1 || taskStatus === 2) && (
+            <>
+              {remainingTime <= 300 && remainingTime >= 0 ? (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: "#f97316" }]}
+                  onPress={() => setIsFinishDialogOpen(true)}
+                >
+                  <Text style={styles.actionButtonText}>Finish</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    {
+                      backgroundColor:
+                        taskStatus === 1 ? "#f59e0b" : "#10b981",
+                    },
+                  ]}
+                  onPress={taskStatus === 1 ? handlePause : handleResume}
+                >
+                  <Text style={styles.actionButtonText}>
+                    {taskStatus === 1 ? "Pause" : "Resume"}
+                  </Text>
+                </TouchableOpacity>
+              )}
+            </>
           )}
         </View>
       </ScrollView>
+
+      {/* Dialog xác nhận hoàn thành */}
+      <Modal
+        visible={isFinishDialogOpen}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setIsFinishDialogOpen(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Complete Task</Text>
+            <Text style={styles.modalDescription}>
+              Are you sure you want to mark "{sampleTask.taskName}" as completed?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setIsFinishDialogOpen(false)}
+              >
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleFinish}
+              >
+                <Text style={styles.modalButtonText}>Confirm</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ImageBackground>
   );
 }
@@ -360,15 +415,16 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 20,
-    color: "#ffffff", // Màu trắng để nổi bật
     fontWeight: "500",
+    color: "#000000", // Màu đen để nổi bật trên nền trắng của timer
     marginBottom: "7%",
-    color: "black", // Màu trắng để nổi bật
   },
   actionButtons: {
     flexDirection: "row",
     justifyContent: "center",
     marginTop: 20,
+    flexWrap: "wrap",
+    gap: 10,
   },
   actionButton: {
     paddingVertical: 10,
@@ -377,6 +433,56 @@ const styles = StyleSheet.create({
     marginHorizontal: 5,
   },
   actionButtonText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "600",
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    width: "80%",
+    maxWidth: 400,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 10,
+  },
+  modalDescription: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: "center",
+  },
+  cancelButton: {
+    backgroundColor: "#d1d5db", // Gray
+  },
+  confirmButton: {
+    backgroundColor: "#10b981", // Green
+  },
+  modalButtonText: {
     fontSize: 16,
     color: "#fff",
     fontWeight: "600",
