@@ -7,8 +7,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Dimensions,
+  ImageBackground,
 } from "react-native";
-import * as Progress from "react-native-progress";
 import Svg, { Circle, Path } from "react-native-svg";
 
 // Component chính hiển thị màn hình quản lý nhiệm vụ
@@ -148,14 +148,14 @@ export default function TaskScreen() {
         <Text style={styles.taskName}>{task.taskName}</Text>
         {/* Vẽ vòng tròn bằng SVG */}
         <Svg height={circleSize} width={circleSize}>
-          {/* Vòng tròn nền */}
+          {/* Vòng tròn nền với nền trắng */}
           <Circle
             cx={circleSize / 2}
             cy={circleSize / 2}
             r={radius - 8}
             stroke="#fef3c7"
             strokeWidth={8}
-            fill="transparent"
+            fill="#ffffff" // Nền trắng cho timer cycle
           />
           {/* Vẽ từng đoạn cung cho các giai đoạn */}
           {phases.map((phase, idx) => {
@@ -201,7 +201,14 @@ export default function TaskScreen() {
 
   // Giao diện chính của component
   return (
-    <View style={styles.mainContainer}>
+    <ImageBackground
+      source={{
+        uri: "https://preview.redd.it/my-wallpapers-wuthering-waves-edition-v0-lrb9d4n1js8e1.jpg?width=640&crop=smart&auto=webp&s=5fd20cd7aa0cb38360bbb02be21d36ed7d831013",
+      }}
+      style={styles.mainContainer}
+      resizeMode="cover"
+    >
+      <View style={styles.overlay} />
       {/* Header hiển thị thời gian và thông tin người dùng */}
       <View style={styles.headerContainer}>
         <View style={styles.headerRow}>
@@ -215,7 +222,9 @@ export default function TaskScreen() {
             <Text style={styles.name}>Tuấn</Text>
             <View style={styles.avatarBlock}>
               <Image
-                source={{ uri: "https://via.placeholder.com/40" }}
+                source={{
+                  uri: "https://preview.redd.it/wuthering-waves-cannot-just-keep-making-future-patches-v0-5jbokr89hxsd1.jpg?width=1280&format=pjpg&auto=webp&s=84e96a6ef6d4508a1d94e8cd828a7ce93b0a2dd4",
+                }}
                 style={styles.avatar}
               />
               <Text style={styles.level}>Lv 5</Text>
@@ -225,7 +234,9 @@ export default function TaskScreen() {
       </View>
       {/* Nội dung chính, có thể cuộn */}
       <ScrollView contentContainerStyle={styles.container}>
-        {renderProgressCircle(sampleTask)}
+        <View style={styles.timerContainer}>
+          {renderProgressCircle(sampleTask)}
+        </View>
         {/* Nút điều khiển nhiệm vụ */}
         <View style={styles.actionButtons}>
           {taskStatus === 0 && (
@@ -254,7 +265,7 @@ export default function TaskScreen() {
           )}
         </View>
       </ScrollView>
-    </View>
+    </ImageBackground>
   );
 }
 
@@ -262,19 +273,23 @@ export default function TaskScreen() {
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: "#F5FDF7",
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0, 0, 0, 0.3)", // Lớp phủ mờ
   },
   headerContainer: {
     padding: 20,
-    backgroundColor: "#F5FDF7",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e7eb",
+    backgroundColor: "transparent", // Trong suốt để hiển thị ảnh nền
   },
   container: {
     padding: 20,
     flexGrow: 1,
-    justifyContent: "center",
     alignItems: "center",
+  },
+  timerContainer: {
+    alignItems: "center",
+    marginTop: 0, // Đặt timer ở trên cùng
   },
   headerRow: {
     flexDirection: "row",
@@ -290,20 +305,20 @@ const styles = StyleSheet.create({
   name: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#609994",
+    color: "#ffffff", // Màu trắng để nổi bật trên ảnh nền
   },
   avatarBlock: {
     alignItems: "center",
   },
   avatar: {
-    width: 40,
-    height: 40,
+    width: 45,
+    height: 45,
     borderRadius: 20,
     backgroundColor: "#ccc",
   },
   level: {
     fontSize: 12,
-    color: "#888",
+    color: "#ffffff", // Màu trắng để nổi bật
     marginTop: 2,
   },
   clockWrapper: {
@@ -314,7 +329,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 48,
     fontWeight: "bold",
-    color: "#333",
+    color: "#ffffff", // Màu trắng để nổi bật
     position: "relative",
   },
   ampmText: {
@@ -323,7 +338,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 6,
     right: -40,
-    color: "#333",
+    color: "#ffffff", // Màu trắng để nổi bật
   },
   progressContainer: {
     alignItems: "center",
@@ -332,7 +347,7 @@ const styles = StyleSheet.create({
   taskName: {
     fontSize: 18,
     fontWeight: "600",
-    color: "#333",
+    color: "#ffffff", // Màu trắng để nổi bật
     marginBottom: 10,
     textAlign: "center",
   },
@@ -345,22 +360,10 @@ const styles = StyleSheet.create({
   },
   progressText: {
     fontSize: 20,
-    color: "#333",
+    color: "#ffffff", // Màu trắng để nổi bật
     fontWeight: "500",
-    marginBottom: "5%",
-  },
-  progressBarContainer: {
-    alignItems: "center",
-    marginVertical: 20,
-  },
-  progressBar: {
-    height: 8,
-    flexDirection: "row",
-    borderRadius: 4,
-    overflow: "hidden",
-  },
-  progressSegment: {
-    height: "100%",
+    marginBottom: "7%",
+    color: "black", // Màu trắng để nổi bật
   },
   actionButtons: {
     flexDirection: "row",

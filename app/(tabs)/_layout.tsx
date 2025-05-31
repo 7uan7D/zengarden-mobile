@@ -29,7 +29,7 @@ export default function TabsLayout() {
           backgroundColor: "#fff",
           borderTopWidth: 1,
           borderTopColor: "#ccc",
-          height: 80,
+          height: 70,
           paddingBottom: insets.bottom,
           paddingTop: 5,
           alignItems: "center",
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
   navSeparator: {
     width: 1,
     backgroundColor: "#ccc",
-    height: "60%",
+    height: "70%",
     position: "absolute",
     left: "50%",
     transform: [{ translateX: -0.5 }],
