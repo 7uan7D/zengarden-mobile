@@ -12,6 +12,15 @@ import {
   Pressable,
 } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
+import { getActiveTaskByUserId } from "../config/services";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { decode as atob } from "base-64";
+import {
+  startTaskById,
+  pauseTaskById,
+  completeTaskById,
+} from "../config/services";
+import { getUserById } from "../config/services"; // hoặc đường dẫn đúng của bạn
 
 // Component chính hiển thị màn hình quản lý nhiệm vụ
 export default function TaskScreen() {
@@ -24,25 +33,66 @@ export default function TaskScreen() {
   // State để kiểm soát dialog xác nhận hoàn thành
   const [isFinishDialogOpen, setIsFinishDialogOpen] = useState(false);
 
-  // Dữ liệu mẫu cho nhiệm vụ
-  const sampleTask = {
-    taskId: 1,
-    taskName: "Learn React Basics",
-    taskDescription: "Study React hooks and components",
-    startDate: "2025-05-20T09:00:00.000Z",
-    endDate: "2025-05-20T12:00:00.000Z",
-    status: taskStatus,
-    focusMethodName: "Pomodoro",
-    totalDuration: 60, // Tổng thời gian nhiệm vụ (phút)
-    workDuration: 25, // Thời gian làm việc mỗi chu kỳ (phút)
-    breakTime: 5, // Thời gian nghỉ mỗi chu kỳ (phút)
-    userTreeName: "Oak Tree",
-    taskTypeName: "Simple",
-    taskNote: "Focus on useState and useEffect",
-    taskResult: null,
-    remainingTime: remainingTime,
-    priority: 1,
+  const [task, setTask] = useState(null);
+
+  const [user, setUser] = useState(null);
+
+  const getUserIdFromToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return null;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.sub; // userId nằm trong sub
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return null;
+    }
   };
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const userId = await getUserIdFromToken();
+      if (!userId) return;
+
+      try {
+        const res = await getUserById(userId);
+        setUser(res.data);
+      } catch (err) {
+        console.error("Lỗi lấy user:", err);
+      }
+    };
+
+    fetchUser();
+  }, []);
+
+  useEffect(() => {
+    const fetchActiveTask = async () => {
+      const userId = await getUserIdFromToken();
+      if (!userId) return;
+
+      try {
+        const res = await getActiveTaskByUserId(userId);
+        if (res.data) {
+          const apiTask = res.data;
+
+          const [hh, mm, ss] = apiTask.remainingTime.split(":").map(Number);
+          const totalRemainingSeconds = hh * 3600 + mm * 60 + ss;
+
+          setTaskStatus(apiTask.status);
+          setRemainingTime(totalRemainingSeconds);
+          setTask({
+            ...apiTask,
+            remainingTime: totalRemainingSeconds,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to fetch task:", error);
+      }
+    };
+
+    fetchActiveTask();
+  }, []);
 
   // Cập nhật thời gian hiện tại mỗi giây
   useEffect(() => {
@@ -88,27 +138,46 @@ export default function TaskScreen() {
   };
 
   // Xử lý sự kiện bắt đầu nhiệm vụ
-  const handleStart = () => {
-    setTaskStatus(1);
+  const handleStart = async () => {
+    if (!task) return;
+    try {
+      await startTaskById(task.taskId);
+      setTaskStatus(1);
+    } catch (error) {
+      console.error("Lỗi khi bắt đầu nhiệm vụ:", error);
+    }
   };
 
-  // Xử lý sự kiện tạm dừng nhiệm vụ
-  const handlePause = () => {
-    setTaskStatus(2);
+  const handlePause = async () => {
+    if (!task) return;
+    try {
+      await pauseTaskById(task.taskId);
+      setTaskStatus(2);
+    } catch (error) {
+      console.error("Lỗi khi tạm dừng nhiệm vụ:", error);
+    }
   };
 
-  // Xử lý sự kiện tiếp tục nhiệm vụ
-  const handleResume = () => {
-    setTaskStatus(1);
+  const handleResume = async () => {
+    if (!task) return;
+    try {
+      await startTaskById(task.taskId); // resume = start
+      setTaskStatus(1);
+    } catch (error) {
+      console.error("Lỗi khi tiếp tục nhiệm vụ:", error);
+    }
   };
 
-  // Xử lý sự kiện hoàn thành nhiệm vụ
-  const handleFinish = () => {
-    setTaskStatus(3); // Đặt trạng thái hoàn thành
-    setRemainingTime(0); // Đặt thời gian còn lại về 0
-    setIsFinishDialogOpen(false); // Đóng dialog
-    // TODO: Gọi API để cập nhật trạng thái nhiệm vụ nếu cần
-    // Ví dụ: await UpdateTaskStatus(sampleTask.taskId, 3);
+  const handleFinish = async () => {
+    if (!task) return;
+    try {
+      await completeTaskById(task.taskId);
+      setTaskStatus(3);
+      setRemainingTime(0);
+      setIsFinishDialogOpen(false);
+    } catch (error) {
+      console.error("Lỗi khi hoàn thành nhiệm vụ:", error);
+    }
   };
 
   // Hàm vẽ vòng tròn tiến độ với các đoạn màu cho work/break
@@ -159,9 +228,8 @@ export default function TaskScreen() {
     return (
       <View style={styles.progressContainer}>
         <Text style={styles.taskName}>{task.taskName}</Text>
-        {/* Vẽ vòng tròn bằng SVG */}
+
         <Svg height={circleSize} width={circleSize}>
-          {/* Vòng tròn nền với nền trắng */}
           <Circle
             cx={circleSize / 2}
             cy={circleSize / 2}
@@ -170,11 +238,11 @@ export default function TaskScreen() {
             strokeWidth={8}
             fill="#ffffff"
           />
-          {/* Vẽ từng đoạn cung cho các giai đoạn (theo chiều kim đồng hồ) */}
           {phases.map((phase, idx) => {
             const phaseProgress = phase.duration / totalDurationSeconds;
             const startAngle = accumulatedProgress * 2 * Math.PI - Math.PI / 2;
-            const endAngle = (accumulatedProgress + phaseProgress) * 2 * Math.PI - Math.PI / 2;
+            const endAngle =
+              (accumulatedProgress + phaseProgress) * 2 * Math.PI - Math.PI / 2;
             accumulatedProgress += phaseProgress;
 
             const largeArcFlag = phaseProgress > 0.5 ? 1 : 0;
@@ -186,7 +254,9 @@ export default function TaskScreen() {
             return (
               <Path
                 key={idx}
-                d={`M ${x1} ${y1} A ${radius - 8} ${radius - 8} 0 ${largeArcFlag} 1 ${x2} ${y2}`}
+                d={`M ${x1} ${y1} A ${radius - 8} ${
+                  radius - 8
+                } 0 ${largeArcFlag} 1 ${x2} ${y2}`}
                 stroke={phase.type === "work" ? "#3b82f6" : "#eab308"}
                 strokeWidth={8}
                 fill="none"
@@ -194,7 +264,6 @@ export default function TaskScreen() {
             );
           })}
         </Svg>
-        {/* Hiển thị thông tin thời gian và giai đoạn */}
         <View style={styles.progressTextContainer}>
           <Text style={styles.progressText}>{formatTime(remainingTime)}</Text>
           <Text style={styles.progressText}>
@@ -204,7 +273,8 @@ export default function TaskScreen() {
             {formatTime(
               timeInCurrentCycle < task.workDuration * 60
                 ? task.workDuration * 60 - timeInCurrentCycle
-                : task.breakTime * 60 - (timeInCurrentCycle - task.workDuration * 60)
+                : task.breakTime * 60 -
+                    (timeInCurrentCycle - task.workDuration * 60)
             )}
           </Text>
         </View>
@@ -214,113 +284,128 @@ export default function TaskScreen() {
 
   // Giao diện chính của component
   return (
-    <ImageBackground
-      source={{
-        uri: "https://preview.redd.it/my-wallpapers-wuthering-waves-edition-v0-lrb9d4n1js8e1.jpg?width=640&crop=smart&auto=webp&s=5fd20cd7aa0cb38360bbb02be21d36ed7d831013",
-      }}
-      style={styles.mainContainer}
-      resizeMode="cover"
-    >
-      <View style={styles.overlay} />
-      {/* Header hiển thị thời gian và thông tin người dùng */}
-      <View style={styles.headerContainer}>
-        <View style={styles.headerRow}>
-          <View style={styles.clockWrapper}>
-            <Text style={styles.timeText}>
-              {displayHour}:{displayMinutes}
-              <Text style={styles.ampmText}> {ampm}</Text>
-            </Text>
-          </View>
-          <View style={styles.nameAvatarRow}>
-            <Text style={styles.name}>Tuấn</Text>
-            <View style={styles.avatarBlock}>
-              <Image
-                source={{
-                  uri: "https://preview.redd.it/wuthering-waves-cannot-just-keep-making-future-patches-v0-5jbokr89hxsd1.jpg?width=1280&format=pjpg&auto=webp&s=84e96a6ef6d4508a1d94e8cd828a7ce93b0a2dd4",
-                }}
-                style={styles.avatar}
-              />
-              <Text style={styles.level}>Lv 5</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-      {/* Nội dung chính, có thể cuộn */}
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.timerContainer}>
-          {renderProgressCircle(sampleTask)}
-        </View>
-        {/* Nút điều khiển nhiệm vụ */}
-        <View style={styles.actionButtons}>
-          {taskStatus === 0 && (
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: "#3b82f6" }]}
-              onPress={handleStart}
-            >
-              <Text style={styles.actionButtonText}>Start</Text>
-            </TouchableOpacity>
-          )}
-          {(taskStatus === 1 || taskStatus === 2) && (
-            <>
-              {remainingTime <= 300 && remainingTime >= 0 ? (
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: "#f97316" }]}
-                  onPress={() => setIsFinishDialogOpen(true)}
-                >
-                  <Text style={styles.actionButtonText}>Finish</Text>
-                </TouchableOpacity>
-              ) : (
-                <TouchableOpacity
-                  style={[
-                    styles.actionButton,
-                    {
-                      backgroundColor:
-                        taskStatus === 1 ? "#f59e0b" : "#10b981",
-                    },
-                  ]}
-                  onPress={taskStatus === 1 ? handlePause : handleResume}
-                >
-                  <Text style={styles.actionButtonText}>
-                    {taskStatus === 1 ? "Pause" : "Resume"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </>
-          )}
-        </View>
-      </ScrollView>
+    <>
+      {user && user.userConfig && (
+        <ImageBackground
+          source={{ uri: user.userConfig?.backgroundConfig }}
+          style={styles.mainContainer}
+          resizeMode="cover"
+        >
+          <View style={styles.overlay} />
+          <View style={styles.headerContainer}>
+            <View style={styles.headerRow}>
+              <View style={styles.clockWrapper}>
+                <Text style={styles.timeText}>
+                  {displayHour}:{displayMinutes}
+                  <Text style={styles.ampmText}> {ampm}</Text>
+                </Text>
+              </View>
+              {user && (
+                <View style={styles.nameAvatarRow}>
+                  <Text style={styles.name}>{user.userName}</Text>
 
-      {/* Dialog xác nhận hoàn thành */}
-      <Modal
-        visible={isFinishDialogOpen}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsFinishDialogOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Complete Task</Text>
-            <Text style={styles.modalDescription}>
-              Are you sure you want to mark "{sampleTask.taskName}" as completed?
-            </Text>
-            <View style={styles.modalButtons}>
-              <Pressable
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => setIsFinishDialogOpen(false)}
-              >
-                <Text style={styles.modalButtonText}>Cancel</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.confirmButton]}
-                onPress={handleFinish}
-              >
-                <Text style={styles.modalButtonText}>Confirm</Text>
-              </Pressable>
+                  <View style={styles.avatarBlock}>
+                    <Image
+                      source={{ uri: user.userConfig?.imageUrl }}
+                      style={styles.avatar}
+                    />
+                    <Text style={styles.level}>
+                      Lv {user.userConfig?.levelId ?? 5}
+                    </Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
-        </View>
-      </Modal>
-    </ImageBackground>
+
+          <ScrollView contentContainerStyle={styles.container}>
+            {task && (
+              <>
+                <View style={styles.timerContainer}>
+                  {renderProgressCircle(task)}
+                </View>
+
+                <View style={styles.actionButtons}>
+                  {taskStatus === 0 && (
+                    <TouchableOpacity
+                      style={[
+                        styles.actionButton,
+                        { backgroundColor: "#3b82f6" },
+                      ]}
+                      onPress={handleStart}
+                    >
+                      <Text style={styles.actionButtonText}>Start</Text>
+                    </TouchableOpacity>
+                  )}
+                  {(taskStatus === 1 || taskStatus === 2) && (
+                    <>
+                      {remainingTime <= 300 && remainingTime >= 0 ? (
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton,
+                            { backgroundColor: "#f97316" },
+                          ]}
+                          onPress={() => setIsFinishDialogOpen(true)}
+                        >
+                          <Text style={styles.actionButtonText}>Finish</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton,
+                            {
+                              backgroundColor:
+                                taskStatus === 1 ? "#f59e0b" : "#10b981",
+                            },
+                          ]}
+                          onPress={
+                            taskStatus === 1 ? handlePause : handleResume
+                          }
+                        >
+                          <Text style={styles.actionButtonText}>
+                            {taskStatus === 1 ? "Pause" : "Resume"}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                    </>
+                  )}
+                </View>
+              </>
+            )}
+          </ScrollView>
+
+          <Modal
+            visible={isFinishDialogOpen}
+            transparent={true}
+            animationType="fade"
+            onRequestClose={() => setIsFinishDialogOpen(false)}
+          >
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalContent}>
+                <Text style={styles.modalTitle}>Complete Task</Text>
+                <Text style={styles.modalDescription}>
+                  Are you sure you want to mark "{task?.taskName}" as completed?
+                </Text>
+                <View style={styles.modalButtons}>
+                  <Pressable
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => setIsFinishDialogOpen(false)}
+                  >
+                    <Text style={styles.modalButtonText}>Cancel</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.modalButton, styles.confirmButton]}
+                    onPress={handleFinish}
+                  >
+                    <Text style={styles.modalButtonText}>Confirm</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          </Modal>
+        </ImageBackground>
+      )}
+    </>
   );
 }
 

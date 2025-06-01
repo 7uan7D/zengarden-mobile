@@ -5,10 +5,13 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
+  ImageBackground,
   ScrollView,
 } from "react-native";
+import { getUserById, getNotificationsByUserId } from "../config/services";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { decode as atob } from "base-64";
 
-// Dữ liệu cứng cho 3 thông báo
 const notifications = [
   {
     id: 1,
@@ -33,7 +36,6 @@ const notifications = [
 export default function NotificationScreen() {
   const [time, setTime] = useState(new Date());
 
-  // Cập nhật đồng hồ
   useEffect(() => {
     const interval = setInterval(() => {
       setTime(new Date());
@@ -49,7 +51,42 @@ export default function NotificationScreen() {
   const displayMinutes = minutes < 10 ? `0${minutes}` : minutes;
   const ampm = isPM ? "PM" : "AM";
 
-  // Định dạng thời gian thông báo
+  const [user, setUser] = useState(null);
+
+  const [notifications, setNotifications] = useState([]);
+
+  const getUserIdFromToken = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) return null;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.sub; // userId nằm trong sub
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const userId = await getUserIdFromToken();
+      if (!userId) return;
+
+      try {
+        const resUser = await getUserById(userId);
+        setUser(resUser.data);
+
+        const resNoti = await getNotificationsByUserId(userId);
+        setNotifications(resNoti.data);
+      } catch (err) {
+        console.error("Lỗi lấy dữ liệu:", err);
+      }
+    };
+
+    fetchData();
+  }, []);
+
   const formatTimestamp = (timestamp) => {
     return new Date(timestamp).toLocaleString("vi-VN", {
       hour: "2-digit",
@@ -61,54 +98,50 @@ export default function NotificationScreen() {
   };
 
   return (
-    <View style={styles.mainContainer}>
-      <ScrollView contentContainerStyle={styles.container}>
-        {/* Header giống TaskScreen */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity style={styles.itemTrigger}>
-            <Text style={styles.itemTriggerText}>🎒</Text>
-          </TouchableOpacity>
-
-          <View style={styles.clockWrapper}>
-            <Text style={styles.timeText}>
-              {displayHour}:{displayMinutes}
-              <Text style={styles.ampmText}> {ampm}</Text>
-            </Text>
+    <>
+      {user && user.userConfig && (
+        <ImageBackground
+          source={{ uri: user.userConfig?.backgroundConfig }}
+          style={styles.mainContainer}
+          resizeMode="cover"
+        >
+          <View style={styles.mainContainer}>
+            <ScrollView contentContainerStyle={styles.container}>
+              <View style={styles.notificationList}>
+                {notifications.length === 0 ? (
+                  <Text style={styles.noNotificationText}>
+                    Không có thông báo
+                  </Text>
+                ) : (
+                  notifications.map((notification) => (
+                    <View
+                      key={notification.notificationId}
+                      style={styles.notificationCard}
+                    >
+                      <Text style={styles.notificationTitle}>
+                        {notification.title}
+                      </Text>
+                      <Text style={styles.notificationMessage}>
+                        {notification.content}
+                      </Text>
+                      <Text style={styles.notificationTimestamp}>
+                        {formatTimestamp(notification.createdAt)}
+                      </Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </ScrollView>
           </View>
-
-          <View style={styles.nameAvatarRow}>
-            <Text style={styles.name}>Tuấn</Text>
-            <View style={styles.avatarBlock}>
-              <Image
-                source={{ uri: "https://via.placeholder.com/40" }}
-                style={styles.avatar}
-              />
-              <Text style={styles.level}>Lv 5</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Danh sách thông báo */}
-        <View style={styles.notificationList}>
-          {notifications.map((notification) => (
-            <View key={notification.id} style={styles.notificationCard}>
-              <Text style={styles.notificationTitle}>{notification.title}</Text>
-              <Text style={styles.notificationMessage}>{notification.message}</Text>
-              <Text style={styles.notificationTimestamp}>
-                {formatTimestamp(notification.timestamp)}
-              </Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
+        </ImageBackground>
+      )}
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   mainContainer: {
     flex: 1,
-    backgroundColor: "#F5FDF7",
   },
   container: {
     padding: 20,
